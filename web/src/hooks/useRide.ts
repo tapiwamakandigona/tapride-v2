@@ -21,9 +21,9 @@ export function useRide() {
     pickupLat: number;
     pickupLng: number;
     pickupAddress: string;
-    dropLat: number;
-    dropLng: number;
-    dropAddress: string;
+    dropoffLat: number;
+    dropoffLng: number;
+    dropoffAddress: string;
     fare: number;
     distanceKm: number;
   }): Promise<Ride | null> => {
@@ -38,8 +38,8 @@ export function useRide() {
         {
           riderId: user.$id,
           status: 'pending' as RideStatus,
-          paymentStatus: 'pending',
-          requestedAt: new Date().toISOString(),
+          
+          
           ...params,
         },
       );
@@ -89,7 +89,7 @@ export function useRide() {
         DATABASE_ID,
         COLLECTIONS.RIDES,
         rideId,
-        { status: 'inprogress', startedAt: new Date().toISOString() },
+        { status: 'inprogress' },
       );
       setActiveRide(doc as unknown as Ride);
       return true;
@@ -111,7 +111,7 @@ export function useRide() {
         DATABASE_ID,
         COLLECTIONS.RIDES,
         rideId,
-        { status: 'completed', completedAt: new Date().toISOString(), paymentStatus: 'paid' },
+        { status: 'completed', completedAt: new Date().toISOString() },
       );
       setActiveRide(doc as unknown as Ride);
       return true;
@@ -135,8 +135,6 @@ export function useRide() {
         rideId,
         {
           status: 'cancelled',
-          cancelledAt: new Date().toISOString(),
-          cancelReason: reason ?? '',
         },
       );
       setActiveRide(doc as unknown as Ride);
@@ -158,12 +156,12 @@ export function useRide() {
       const [riderRes, driverRes] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COLLECTIONS.RIDES, [
           Query.equal('riderId', user.$id),
-          Query.orderDesc('requestedAt'),
+          Query.orderDesc('$createdAt'),
           Query.limit(50),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.RIDES, [
           Query.equal('driverId', user.$id),
-          Query.orderDesc('requestedAt'),
+          Query.orderDesc('$createdAt'),
           Query.limit(50),
         ]),
       ]);
@@ -171,7 +169,7 @@ export function useRide() {
       // Deduplicate and sort
       const map = new Map(all.map((r) => [r.$id, r]));
       return Array.from(map.values()).sort(
-        (a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime(),
+        (a, b) => new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime(),
       );
     } catch (e) {
       logger.error('fetchHistory', e);

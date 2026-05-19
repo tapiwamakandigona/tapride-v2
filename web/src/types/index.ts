@@ -23,24 +23,20 @@ export interface Profile {
 /** A ride request/trip stored in the `rides` collection */
 export interface Ride {
   $id: string;
+  $createdAt: string;
   riderId: string;
   driverId?: string;
   status: RideStatus;
   pickupLat: number;
   pickupLng: number;
   pickupAddress: string;
-  dropLat: number;
-  dropLng: number;
-  dropAddress: string;
+  dropoffLat: number;
+  dropoffLng: number;
+  dropoffAddress: string;
   fare: number;
   distanceKm: number;
-  paymentStatus: PaymentStatus;
-  requestedAt: string;
   acceptedAt?: string;
-  startedAt?: string;
   completedAt?: string;
-  cancelledAt?: string;
-  cancelReason?: string;
 }
 
 /** Real-time driver position stored in `driver_locations` collection */

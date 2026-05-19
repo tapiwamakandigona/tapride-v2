@@ -51,7 +51,7 @@ const DriverDashboard: React.FC = () => {
       try {
         const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.RIDES, [
           Query.equal('status', 'pending'),
-          Query.orderDesc('requestedAt'),
+          Query.orderDesc('$createdAt'),
           Query.limit(10),
         ]);
         setRequestedRides(res.documents as unknown as Ride[]);
@@ -177,7 +177,7 @@ const DriverDashboard: React.FC = () => {
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 h-2 w-2 rounded-full bg-red-500 flex-shrink-0" />
-                <span className="text-gray-700 line-clamp-2">{ride.dropAddress}</span>
+                <span className="text-gray-700 line-clamp-2">{ride.dropoffAddress}</span>
               </div>
             </div>
 

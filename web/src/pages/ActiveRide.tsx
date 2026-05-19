@@ -114,8 +114,8 @@ const ActiveRide: React.FC = () => {
       <MapView
         pickupLat={localRide.pickupLat}
         pickupLng={localRide.pickupLng}
-        dropLat={localRide.dropLat}
-        dropLng={localRide.dropLng}
+        dropoffLat={localRide.dropoffLat}
+        dropoffLng={localRide.dropoffLng}
         showRoute
         className="h-56 flex-shrink-0"
       />
@@ -149,7 +149,7 @@ const ActiveRide: React.FC = () => {
             <span className="mt-0.5 h-2 w-2 rounded-full bg-red-500 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-400">Drop-off</p>
-              <p className="text-gray-700">{localRide.dropAddress}</p>
+              <p className="text-gray-700">{localRide.dropoffAddress}</p>
             </div>
           </div>
           <p className="text-xs text-gray-400">{localRide.distanceKm.toFixed(1)} km</p>

@@ -41,11 +41,11 @@ const RiderDashboard: React.FC = () => {
   const [userLat, setUserLat] = useState<number | undefined>();
   const [userLng, setUserLng] = useState<number | undefined>();
   const [pickupAddress, setPickupAddress] = useState('');
-  const [dropAddress, setDropAddress] = useState('');
+  const [dropoffAddress, setDropAddress] = useState('');
   const [pickupLat, setPickupLat] = useState<number | undefined>();
   const [pickupLng, setPickupLng] = useState<number | undefined>();
-  const [dropLat, setDropLat] = useState<number | undefined>();
-  const [dropLng, setDropLng] = useState<number | undefined>();
+  const [dropoffLat, setDropLat] = useState<number | undefined>();
+  const [dropoffLng, setDropLng] = useState<number | undefined>();
   const [fareEstimate, setFareEstimate] = useState<number | null>(null);
   const [geocoding, setGeocoding] = useState(false);
 
@@ -82,36 +82,36 @@ const RiderDashboard: React.FC = () => {
 
   // Recalculate fare whenever coords change
   useEffect(() => {
-    if (pickupLat && pickupLng && dropLat && dropLng) {
-      const dist = haversineKm(pickupLat, pickupLng, dropLat, dropLng);
+    if (pickupLat && pickupLng && dropoffLat && dropoffLng) {
+      const dist = haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
       setFareEstimate(calculateFare(dist));
     } else {
       setFareEstimate(null);
     }
-  }, [pickupLat, pickupLng, dropLat, dropLng]);
+  }, [pickupLat, pickupLng, dropoffLat, dropoffLng]);
 
   const handleDropGeocode = useCallback(async () => {
-    if (!dropAddress.trim()) return;
+    if (!dropoffAddress.trim()) return;
     setGeocoding(true);
-    const result = await geocode(dropAddress);
+    const result = await geocode(dropoffAddress);
     setGeocoding(false);
     if (result) {
       setDropLat(parseFloat(result.lat));
       setDropLng(parseFloat(result.lon));
       setDropAddress(result.display_name);
     }
-  }, [dropAddress]);
+  }, [dropoffAddress]);
 
   const handleRequestRide = async () => {
-    if (!pickupLat || !pickupLng || !dropLat || !dropLng || !fareEstimate) return;
-    const distKm = haversineKm(pickupLat, pickupLng, dropLat, dropLng);
+    if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng || !fareEstimate) return;
+    const distKm = haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
     const ride = await requestRide({
       pickupLat,
       pickupLng,
       pickupAddress,
-      dropLat,
-      dropLng,
-      dropAddress,
+      dropoffLat,
+      dropoffLng,
+      dropoffAddress,
       fare: fareEstimate,
       distanceKm: distKm,
     });
@@ -129,9 +129,9 @@ const RiderDashboard: React.FC = () => {
         drivers={nearbyDrivers}
         pickupLat={pickupLat}
         pickupLng={pickupLng}
-        dropLat={dropLat}
-        dropLng={dropLng}
-        showRoute={!!(dropLat && dropLng)}
+        dropoffLat={dropoffLat}
+        dropoffLng={dropoffLng}
+        showRoute={!!(dropoffLat && dropoffLng)}
         className="h-56 flex-shrink-0"
       />
 
@@ -163,7 +163,7 @@ const RiderDashboard: React.FC = () => {
           <div className="flex gap-2">
             <input
               type="text"
-              value={dropAddress}
+              value={dropoffAddress}
               onChange={(e) => setDropAddress(e.target.value)}
               onBlur={handleDropGeocode}
               className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
@@ -182,8 +182,8 @@ const RiderDashboard: React.FC = () => {
                 <p className="text-2xl font-bold text-brand-700">{formatFare(fareEstimate)}</p>
               </div>
               <div className="text-right text-sm text-brand-600">
-                {pickupLat && pickupLng && dropLat && dropLng
-                  ? `${haversineKm(pickupLat, pickupLng, dropLat, dropLng).toFixed(1)} km`
+                {pickupLat && pickupLng && dropoffLat && dropoffLng
+                  ? `${haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng).toFixed(1)} km`
                   : ''}
               </div>
             </div>
@@ -193,7 +193,7 @@ const RiderDashboard: React.FC = () => {
         {/* Request button */}
         <button
           onClick={handleRequestRide}
-          disabled={loading || !dropLat || !pickupLat}
+          disabled={loading || !dropoffLat || !pickupLat}
           className="w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors"
         >
           {loading ? <LoadingSpinner size="sm" /> : 'Request Ride 🚖'}

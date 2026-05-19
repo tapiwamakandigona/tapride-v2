@@ -13,7 +13,7 @@ interface Props {
 
 /** Displays a compact ride summary with status, addresses and fare. */
 export const RideCard: React.FC<Props> = ({ ride, onClick }) => {
-  const date = new Date(ride.requestedAt).toLocaleDateString();
+  const date = new Date(ride.$createdAt).toLocaleDateString();
 
   return (
     <div
@@ -31,7 +31,7 @@ export const RideCard: React.FC<Props> = ({ ride, onClick }) => {
         </div>
         <div className="flex items-start gap-2">
           <span className="mt-0.5 h-2 w-2 rounded-full bg-red-500 flex-shrink-0" />
-          <span className="text-gray-700 line-clamp-1">{ride.dropAddress}</span>
+          <span className="text-gray-700 line-clamp-1">{ride.dropoffAddress}</span>
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between text-sm">

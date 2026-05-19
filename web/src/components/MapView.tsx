@@ -50,8 +50,8 @@ interface Props {
   drivers?: DriverLocation[];
   pickupLat?: number;
   pickupLng?: number;
-  dropLat?: number;
-  dropLng?: number;
+  dropoffLat?: number;
+  dropoffLng?: number;
   showRoute?: boolean;
   className?: string;
 }
@@ -96,8 +96,8 @@ export const MapView: React.FC<Props> = ({
   drivers = [],
   pickupLat,
   pickupLng,
-  dropLat,
-  dropLng,
+  dropoffLat,
+  dropoffLng,
   showRoute = false,
   className = 'h-64',
 }) => {
@@ -107,12 +107,12 @@ export const MapView: React.FC<Props> = ({
   const centerLng = userLng ?? 31.0335; // Default: Harare, Zimbabwe
 
   useEffect(() => {
-    if (showRoute && pickupLat && pickupLng && dropLat && dropLng) {
-      fetchRoute(pickupLat, pickupLng, dropLat, dropLng).then(setRouteCoords);
+    if (showRoute && pickupLat && pickupLng && dropoffLat && dropoffLng) {
+      fetchRoute(pickupLat, pickupLng, dropoffLat, dropoffLng).then(setRouteCoords);
     } else {
       setRouteCoords([]);
     }
-  }, [showRoute, pickupLat, pickupLng, dropLat, dropLng]);
+  }, [showRoute, pickupLat, pickupLng, dropoffLat, dropoffLng]);
 
   return (
     <div className={`rounded-xl overflow-hidden ${className}`}>
@@ -148,8 +148,8 @@ export const MapView: React.FC<Props> = ({
           </Marker>
         )}
 
-        {dropLat && dropLng && (
-          <Marker position={[dropLat, dropLng]} icon={dropIcon}>
+        {dropoffLat && dropoffLng && (
+          <Marker position={[dropoffLat, dropoffLng]} icon={dropIcon}>
             <Popup>Drop-off</Popup>
           </Marker>
         )}
