@@ -53,11 +53,12 @@ export interface DriverLocation {
 /** Chat message stored in `messages` collection */
 export interface Message {
   $id: string;
+  $createdAt?: string;
   rideId: string;
   senderId: string;
-  senderName: string;
+  senderName?: string;
   content: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 /** Post-ride rating stored in `ratings` collection */
