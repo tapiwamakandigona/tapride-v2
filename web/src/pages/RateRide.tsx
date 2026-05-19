@@ -43,7 +43,6 @@ const RateRide: React.FC = () => {
         ratedId: driverId,
         score,
         comment: comment.trim(),
-        createdAt: new Date().toISOString(),
       }, [
         Permission.read(Role.users()),
         Permission.update(Role.user(user.$id)),

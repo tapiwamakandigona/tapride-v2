@@ -86,7 +86,6 @@ export function useChat(rideId: string) {
         senderId: user.$id,
         senderName: profile.name,
         content: content.trim(),
-        createdAt: new Date().toISOString(),
       }, [
         Permission.read(Role.users()),
         Permission.update(Role.user(user.$id)),
