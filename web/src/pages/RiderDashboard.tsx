@@ -11,6 +11,8 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Query } from 'appwrite';
+import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { MapView } from '@/components/MapView';
 import { DriverCard } from '@/components/DriverCard';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -141,9 +143,31 @@ const FareConfirmSheet: React.FC<FareConfirmProps> = ({
 
 const RiderDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { nearbyDrivers } = useRideStore();
   const { fetchNearbyDrivers } = useDriverLocation();
   const { requestRide, loading, error } = useRide();
+
+  // On mount: redirect to active ride if one exists in Appwrite
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.RIDES, [
+          Query.equal('riderId', user.$id),
+          Query.notEqual('status', 'completed'),
+          Query.notEqual('status', 'cancelled'),
+          Query.orderDesc('$createdAt'),
+          Query.limit(1),
+        ]);
+        if (res.documents.length > 0) {
+          navigate(`/ride/${res.documents[0].$id}`, { replace: true });
+        }
+      } catch {
+        // no active ride, stay on dashboard
+      }
+    })();
+  }, [user, navigate]);
 
   const [detectingLocation, setDetectingLocation] = useState(true);
   const [userLat, setUserLat] = useState<number | undefined>();

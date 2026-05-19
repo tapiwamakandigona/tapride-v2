@@ -32,6 +32,28 @@ const DriverDashboard: React.FC = () => {
   const [userLng, setUserLng] = useState<number | undefined>();
   const [togglingOnline, setTogglingOnline] = useState(false);
 
+  // On mount: redirect if driver has an active ride (accepted/inprogress)
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.RIDES, [
+          Query.equal('driverId', user.$id),
+          Query.notEqual('status', 'completed'),
+          Query.notEqual('status', 'cancelled'),
+          Query.notEqual('status', 'pending'),
+          Query.orderDesc('$createdAt'),
+          Query.limit(1),
+        ]);
+        if (res.documents.length > 0) {
+          navigate(`/ride/${res.documents[0].$id}`, { replace: true });
+        }
+      } catch {
+        // stay on dashboard
+      }
+    })();
+  }, [user, navigate]);
+
   // Get driver location
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
