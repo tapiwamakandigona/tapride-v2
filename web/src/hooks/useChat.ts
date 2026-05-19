@@ -78,13 +78,14 @@ export function useChat(rideId: string) {
 
   /** Send a chat message */
   const sendMessage = useCallback(async (content: string): Promise<boolean> => {
-    if (!user || !profile || !rideId || !content.trim()) return false;
+    if (!user || !rideId || !content.trim()) return false;
+    const senderName = profile?.name ?? user.name ?? user.email ?? 'Unknown';
     setError(null);
     try {
       await databases.createDocument(DATABASE_ID, COLLECTIONS.MESSAGES, ID.unique(), {
         rideId,
         senderId: user.$id,
-        senderName: profile.name,
+        senderName,
         content: content.trim(),
       }, [
         Permission.read(Role.users()),
