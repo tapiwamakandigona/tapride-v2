@@ -1,9 +1,9 @@
 /**
  * RateRide page — lets the rider rate their driver after a completed ride.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ID, AppwriteException } from 'appwrite';
+import { ID, AppwriteException, Permission, Role } from 'appwrite';
 import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuthStore } from '@/store/authStore';
 import { useRideStore } from '@/store/rideStore';
@@ -21,8 +21,15 @@ const RateRide: React.FC = () => {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [driverId, setDriverId] = useState<string | null>(activeRide?.driverId ?? null);
 
-  const driverId = activeRide?.driverId;
+  // Fetch driverId from Appwrite if not in store
+  useEffect(() => {
+    if (driverId || !rideId) return;
+    databases.getDocument(DATABASE_ID, COLLECTIONS.RIDES, rideId)
+      .then((doc) => { if (doc.driverId) setDriverId(doc.driverId as string); })
+      .catch(() => {});
+  }, [rideId, driverId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +44,11 @@ const RateRide: React.FC = () => {
         score,
         comment: comment.trim(),
         createdAt: new Date().toISOString(),
-      });
+      }, [
+        Permission.read(Role.users()),
+        Permission.update(Role.user(user.$id)),
+        Permission.delete(Role.user(user.$id)),
+      ]);
       navigate('/rider', { replace: true });
     } catch (e) {
       const msg = e instanceof AppwriteException ? e.message : 'Failed to submit rating';
