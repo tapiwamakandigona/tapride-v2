@@ -2,8 +2,14 @@
  * RiderDashboard — main screen for riders.
  * Shows a map of nearby drivers, lets them enter pickup/drop addresses,
  * estimates the fare, and creates a ride request.
+ *
+ * UX improvements:
+ *  - Pickup shows "Detecting your location…" while GPS resolves (fix 3)
+ *  - Address suggestions dropdown as user types (fix 4)
+ *  - Geocoding spinner + "Searching…" feedback (fix 2)
+ *  - Fare preview confirm sheet before booking (fix 1)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapView } from '@/components/MapView';
 import { DriverCard } from '@/components/DriverCard';
@@ -17,12 +23,14 @@ import { calculateFare, formatFare } from '@/lib/fare';
 import type { GeoResult } from '@/types';
 import { logger } from '@/lib/logger';
 
-/** Geocode an address string using Nominatim */
+// ─── Nominatim helpers ────────────────────────────────────────────────────────
+
+/** Geocode a full address string → single best result */
 async function geocode(address: string): Promise<GeoResult | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
     const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-    const data = await res.json() as GeoResult[];
+    const data = (await res.json()) as GeoResult[];
     return data[0] ?? null;
   } catch (e) {
     logger.error('geocode', e);
@@ -30,27 +38,144 @@ async function geocode(address: string): Promise<GeoResult | null> {
   }
 }
 
-/** Rider's home screen: map, booking form and driver list. */
+/** Fetch up to 5 address suggestions for autocomplete */
+async function fetchSuggestions(query: string): Promise<GeoResult[]> {
+  if (query.length < 3) return [];
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=0`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    return (await res.json()) as GeoResult[];
+  } catch {
+    return [];
+  }
+}
+
+// ─── Suggestion dropdown ──────────────────────────────────────────────────────
+
+interface SuggestionListProps {
+  items: GeoResult[];
+  onSelect: (item: GeoResult) => void;
+}
+
+const SuggestionList: React.FC<SuggestionListProps> = ({ items, onSelect }) => {
+  if (items.length === 0) return null;
+  return (
+    <ul className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg text-sm overflow-hidden">
+      {items.map((item) => (
+        <li
+          key={item.place_id ?? item.display_name}
+          onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
+          className="px-3 py-2 cursor-pointer hover:bg-brand-50 border-b border-gray-100 last:border-0 truncate"
+        >
+          {item.display_name}
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+// ─── Fare confirm sheet ───────────────────────────────────────────────────────
+
+interface FareConfirmProps {
+  fare: number;
+  distKm: number;
+  pickupAddress: string;
+  dropoffAddress: string;
+  loading: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+const FareConfirmSheet: React.FC<FareConfirmProps> = ({
+  fare, distKm, pickupAddress, dropoffAddress, loading, onConfirm, onClose,
+}) => (
+  <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="w-full max-w-md rounded-t-2xl bg-white p-6 pb-8 space-y-4 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-lg font-bold text-gray-900 text-center">Confirm your ride</h3>
+
+      <div className="rounded-xl bg-brand-50 border border-brand-200 p-4 text-center">
+        <p className="text-xs text-brand-600 font-medium mb-1">Estimated Fare</p>
+        <p className="text-4xl font-extrabold text-brand-700">{formatFare(fare)}</p>
+        <p className="text-sm text-brand-500 mt-1">{distKm.toFixed(1)} km</p>
+      </div>
+
+      <div className="space-y-2 text-sm">
+        <div className="flex items-start gap-2">
+          <span className="mt-1 h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
+          <div>
+            <p className="text-xs text-gray-400">Pickup</p>
+            <p className="text-gray-700 line-clamp-2">{pickupAddress}</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className="mt-1 h-2 w-2 rounded-full bg-red-500 flex-shrink-0" />
+          <div>
+            <p className="text-xs text-gray-400">Drop-off</p>
+            <p className="text-gray-700 line-clamp-2">{dropoffAddress}</p>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={onConfirm}
+        disabled={loading}
+        className="w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+      >
+        {loading ? <LoadingSpinner size="sm" /> : '🚖 Confirm Ride'}
+      </button>
+      <button
+        onClick={onClose}
+        disabled={loading}
+        className="w-full rounded-xl border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+);
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 const RiderDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const { nearbyDrivers } = useRideStore();
   const { fetchNearbyDrivers } = useDriverLocation();
   const { requestRide, loading, error } = useRide();
 
+  const [detectingLocation, setDetectingLocation] = useState(true);
   const [userLat, setUserLat] = useState<number | undefined>();
   const [userLng, setUserLng] = useState<number | undefined>();
+
   const [pickupAddress, setPickupAddress] = useState('');
-  const [dropoffAddress, setDropAddress] = useState('');
+  const [dropoffAddress, setDropoffAddress] = useState('');
   const [pickupLat, setPickupLat] = useState<number | undefined>();
   const [pickupLng, setPickupLng] = useState<number | undefined>();
-  const [dropoffLat, setDropLat] = useState<number | undefined>();
-  const [dropoffLng, setDropLng] = useState<number | undefined>();
-  const [fareEstimate, setFareEstimate] = useState<number | null>(null);
-  const [geocoding, setGeocoding] = useState(false);
+  const [dropoffLat, setDropoffLat] = useState<number | undefined>();
+  const [dropoffLng, setDropoffLng] = useState<number | undefined>();
 
-  // Get user location on mount
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeMsg, setGeocodeMsg] = useState('');
+
+  // Suggestions
+  const [pickupSuggestions, setPickupSuggestions] = useState<GeoResult[]>([]);
+  const [dropoffSuggestions, setDropoffSuggestions] = useState<GeoResult[]>([]);
+  const pickupDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropoffDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Confirm sheet
+  const [showConfirm, setShowConfirm] = useState(false);
+  const pendingRideRef = useRef<{
+    pLat: number; pLng: number; pAddr: string;
+    lat: number; lng: number; addr: string;
+    fare: number; distKm: number;
+  } | null>(null);
+
+  // ── GPS on mount ─────────────────────────────────────────────────────────
   useEffect(() => {
+    setDetectingLocation(true);
     navigator.geolocation?.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -58,60 +183,78 @@ const RiderDashboard: React.FC = () => {
         setUserLng(longitude);
         setPickupLat(latitude);
         setPickupLng(longitude);
-
-        // Reverse geocode for pickup label
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
           );
-          const data = await res.json() as { display_name?: string };
+          const data = (await res.json()) as { display_name?: string };
           if (data.display_name) setPickupAddress(data.display_name);
         } catch {
           setPickupAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
         }
-
+        setDetectingLocation(false);
         await fetchNearbyDrivers(latitude, longitude);
       },
       () => {
         logger.warn('Geolocation denied');
+        setDetectingLocation(false);
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Recalculate fare whenever coords change
-  useEffect(() => {
-    if (pickupLat && pickupLng && dropoffLat && dropoffLng) {
-      const dist = haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
-      setFareEstimate(calculateFare(dist));
-    } else {
-      setFareEstimate(null);
-    }
-  }, [pickupLat, pickupLng, dropoffLat, dropoffLng]);
+  // ── Autocomplete: pickup ──────────────────────────────────────────────────
+  const handlePickupChange = (val: string) => {
+    setPickupAddress(val);
+    setPickupLat(undefined);
+    setPickupLng(undefined);
+    if (pickupDebounce.current) clearTimeout(pickupDebounce.current);
+    pickupDebounce.current = setTimeout(async () => {
+      const results = await fetchSuggestions(val);
+      setPickupSuggestions(results);
+    }, 350);
+  };
 
-  const handleDropGeocode = useCallback(async () => {
-    if (!dropoffAddress.trim()) return;
-    setGeocoding(true);
-    const result = await geocode(dropoffAddress);
-    setGeocoding(false);
-    if (result) {
-      setDropLat(parseFloat(result.lat));
-      setDropLng(parseFloat(result.lon));
-      setDropAddress(result.display_name);
-    }
-  }, [dropoffAddress]);
+  const selectPickup = (item: GeoResult) => {
+    setPickupAddress(item.display_name);
+    setPickupLat(parseFloat(item.lat));
+    setPickupLng(parseFloat(item.lon));
+    setPickupSuggestions([]);
+  };
 
-  const handleRequestRide = async () => {
-    // Geocode pickup if not yet resolved (e.g. geolocation denied)
+  // ── Autocomplete: dropoff ─────────────────────────────────────────────────
+  const handleDropoffChange = (val: string) => {
+    setDropoffAddress(val);
+    setDropoffLat(undefined);
+    setDropoffLng(undefined);
+    if (dropoffDebounce.current) clearTimeout(dropoffDebounce.current);
+    dropoffDebounce.current = setTimeout(async () => {
+      const results = await fetchSuggestions(val);
+      setDropoffSuggestions(results);
+    }, 350);
+  };
+
+  const selectDropoff = (item: GeoResult) => {
+    setDropoffAddress(item.display_name);
+    setDropoffLat(parseFloat(item.lat));
+    setDropoffLng(parseFloat(item.lon));
+    setDropoffSuggestions([]);
+  };
+
+  // ── Step 1: resolve coords then show confirm sheet ────────────────────────
+  const handleRequestRide = useCallback(async () => {
     let pLat = pickupLat;
     let pLng = pickupLng;
     let pAddr = pickupAddress;
+
     if ((!pLat || !pLng) && pickupAddress.trim()) {
       setGeocoding(true);
+      setGeocodeMsg('Searching pickup…');
       const result = await geocode(pickupAddress);
       setGeocoding(false);
-      if (!result) { return; }
+      setGeocodeMsg('');
+      if (!result) return;
       pLat = parseFloat(result.lat);
       pLng = parseFloat(result.lon);
       pAddr = result.display_name;
@@ -119,39 +262,55 @@ const RiderDashboard: React.FC = () => {
       setPickupLng(pLng);
       setPickupAddress(pAddr);
     }
-    // Geocode dropoff if not yet resolved
-    let lat = dropoffLat;
-    let lng = dropoffLng;
-    let addr = dropoffAddress;
-    if ((!lat || !lng) && dropoffAddress.trim()) {
+
+    let dLat = dropoffLat;
+    let dLng = dropoffLng;
+    let dAddr = dropoffAddress;
+
+    if ((!dLat || !dLng) && dropoffAddress.trim()) {
       setGeocoding(true);
+      setGeocodeMsg('Searching drop-off…');
       const result = await geocode(dropoffAddress);
       setGeocoding(false);
-      if (!result) { return; }
-      lat = parseFloat(result.lat);
-      lng = parseFloat(result.lon);
-      addr = result.display_name;
-      setDropLat(lat);
-      setDropLng(lng);
-      setDropAddress(addr);
+      setGeocodeMsg('');
+      if (!result) return;
+      dLat = parseFloat(result.lat);
+      dLng = parseFloat(result.lon);
+      dAddr = result.display_name;
+      setDropoffLat(dLat);
+      setDropoffLng(dLng);
+      setDropoffAddress(dAddr);
     }
-    if (!pLat || !pLng || !lat || !lng) return;
-    const distKm = haversineKm(pLat, pLng, lat, lng);
+
+    if (!pLat || !pLng || !dLat || !dLng) return;
+
+    const distKm = haversineKm(pLat, pLng, dLat, dLng);
     const fare = calculateFare(distKm);
+    pendingRideRef.current = { pLat, pLng, pAddr, lat: dLat, lng: dLng, addr: dAddr, fare, distKm };
+    setShowConfirm(true);
+  }, [pickupLat, pickupLng, pickupAddress, dropoffLat, dropoffLng, dropoffAddress]);
+
+  // ── Step 2: user confirmed → create ride ─────────────────────────────────
+  const handleConfirm = async () => {
+    const p = pendingRideRef.current;
+    if (!p) return;
     const ride = await requestRide({
-      pickupLat: pLat,
-      pickupLng: pLng,
-      pickupAddress: pAddr,
-      dropoffLat: lat,
-      dropoffLng: lng,
-      dropoffAddress: addr,
-      fare,
-      distanceKm: distKm,
+      pickupLat: p.pLat,
+      pickupLng: p.pLng,
+      pickupAddress: p.pAddr,
+      dropoffLat: p.lat,
+      dropoffLng: p.lng,
+      dropoffAddress: p.addr,
+      fare: p.fare,
+      distanceKm: p.distKm,
     });
-    if (ride) {
-      navigate(`/ride/${ride.$id}`);
-    }
+    if (ride) navigate(`/ride/${ride.$id}`);
   };
+
+  const farePreview =
+    pickupLat && pickupLng && dropoffLat && dropoffLng
+      ? calculateFare(haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng))
+      : null;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -178,41 +337,59 @@ const RiderDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Geocoding feedback */}
+        {(geocoding || geocodeMsg) && (
+          <div className="flex items-center gap-2 text-sm text-brand-600">
+            <LoadingSpinner size="sm" />
+            <span>{geocodeMsg || 'Searching…'}</span>
+          </div>
+        )}
+
         {/* Pickup */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">Pickup</label>
+        <div className="relative">
+          <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">
+            Pickup
+          </label>
           <input
             type="text"
             value={pickupAddress}
-            onChange={(e) => setPickupAddress(e.target.value)}
+            onChange={(e) => handlePickupChange(e.target.value)}
+            onBlur={() => setTimeout(() => setPickupSuggestions([]), 150)}
             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
-            placeholder="Enter pickup location"
+            placeholder={detectingLocation ? '📍 Detecting your location…' : 'Enter pickup location'}
+            disabled={detectingLocation}
           />
+          {detectingLocation && (
+            <div className="absolute right-3 top-8">
+              <LoadingSpinner size="sm" />
+            </div>
+          )}
+          <SuggestionList items={pickupSuggestions} onSelect={selectPickup} />
         </div>
 
-        {/* Drop */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">Drop-off</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={dropoffAddress}
-              onChange={(e) => setDropAddress(e.target.value)}
-              onBlur={handleDropGeocode}
-              className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
-              placeholder="Enter destination"
-            />
-            {geocoding && <LoadingSpinner size="sm" />}
-          </div>
+        {/* Drop-off */}
+        <div className="relative">
+          <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">
+            Drop-off
+          </label>
+          <input
+            type="text"
+            value={dropoffAddress}
+            onChange={(e) => handleDropoffChange(e.target.value)}
+            onBlur={() => setTimeout(() => setDropoffSuggestions([]), 150)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+            placeholder="Enter destination"
+          />
+          <SuggestionList items={dropoffSuggestions} onSelect={selectDropoff} />
         </div>
 
-        {/* Fare estimate */}
-        {fareEstimate !== null && (
+        {/* Fare preview (before confirming) */}
+        {farePreview !== null && (
           <div className="rounded-xl bg-brand-50 border border-brand-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-brand-600 font-medium">Estimated Fare</p>
-                <p className="text-2xl font-bold text-brand-700">{formatFare(fareEstimate)}</p>
+                <p className="text-2xl font-bold text-brand-700">{formatFare(farePreview)}</p>
               </div>
               <div className="text-right text-sm text-brand-600">
                 {pickupLat && pickupLng && dropoffLat && dropoffLng
@@ -223,20 +400,22 @@ const RiderDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Request button */}
+        {/* Request button → opens confirm sheet */}
         <button
           onClick={handleRequestRide}
           type="button"
-          disabled={loading || !pickupAddress.trim() || !dropoffAddress.trim()}
-          className="w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors"
+          disabled={geocoding || !pickupAddress.trim() || !dropoffAddress.trim()}
+          className="w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
         >
-          {loading ? <LoadingSpinner size="sm" /> : 'Request Ride 🚖'}
+          {geocoding ? <LoadingSpinner size="sm" /> : 'Request Ride 🚖'}
         </button>
 
         {/* Nearby drivers */}
         {nearbyDrivers.length > 0 && (
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-700">Nearby Drivers ({nearbyDrivers.length})</h3>
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">
+              Nearby Drivers ({nearbyDrivers.length})
+            </h3>
             <div className="space-y-2">
               {nearbyDrivers.map((d) => (
                 <DriverCard
@@ -250,6 +429,19 @@ const RiderDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Fare confirm sheet */}
+      {showConfirm && pendingRideRef.current && (
+        <FareConfirmSheet
+          fare={pendingRideRef.current.fare}
+          distKm={pendingRideRef.current.distKm}
+          pickupAddress={pendingRideRef.current.pAddr}
+          dropoffAddress={pendingRideRef.current.addr}
+          loading={loading}
+          onConfirm={handleConfirm}
+          onClose={() => setShowConfirm(false)}
+        />
+      )}
     </div>
   );
 };

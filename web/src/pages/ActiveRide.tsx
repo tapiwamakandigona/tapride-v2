@@ -1,8 +1,12 @@
 /**
  * ActiveRide page — live ride tracking for both rider and driver.
  * Subscribes to the ride document via Realtime for status updates.
+ *
+ * UX improvements:
+ *  - Cancel confirmation dialog (fix 6)
+ *  - "No drivers available" timeout after 60 s (fix 5)
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapView } from '@/components/MapView';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -16,28 +20,71 @@ import { formatFare } from '@/lib/fare';
 import type { Ride } from '@/types';
 import { logger } from '@/lib/logger';
 
+/** How long (ms) to wait in pending before showing "no drivers" warning */
+const DRIVER_TIMEOUT_MS = 60_000;
+
 /** Status messages shown in the banner for each ride state. */
 const STATUS_MESSAGES: Record<string, string> = {
   pending: '🔍 Looking for a driver…',
   accepted: '🚗 Driver is on the way',
-  in_progress: '🛣️ Ride in progress',
+  inprogress: '🛣️ Ride in progress',
   completed: '✅ Ride completed!',
   cancelled: '❌ Ride cancelled',
 };
 
-/** Active ride screen with map, status banner and driver/rider controls. */
+// ─── Cancel confirmation dialog ───────────────────────────────────────────────
+
+interface CancelDialogProps {
+  loading: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+const CancelDialog: React.FC<CancelDialogProps> = ({ loading, onConfirm, onClose }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
+    <div
+      className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-lg font-bold text-gray-900 text-center">Cancel this ride?</h3>
+      <p className="text-sm text-gray-500 text-center">
+        Your ride request will be cancelled. You can always book a new one.
+      </p>
+      <button
+        onClick={onConfirm}
+        disabled={loading}
+        className="w-full rounded-xl bg-red-500 py-3 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {loading ? <LoadingSpinner size="sm" /> : 'Yes, Cancel Ride'}
+      </button>
+      <button
+        onClick={onClose}
+        disabled={loading}
+        className="w-full rounded-xl border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
+      >
+        Keep Waiting
+      </button>
+    </div>
+  </div>
+);
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 const ActiveRide: React.FC = () => {
   const { rideId } = useParams<{ rideId: string }>();
   const navigate = useNavigate();
-  const { user, profile } = useAuthStore();
+  const { profile } = useAuthStore();
   const { activeRide, setActiveRide } = useRideStore();
   const { startRide, completeRide, cancelRide, loading } = useRide();
   const [localRide, setLocalRide] = useState<Ride | null>(activeRide);
   const [error, setError] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [noDriversWarning, setNoDriversWarning] = useState(false);
 
   const isDriver = profile?.role === 'driver';
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load ride from DB if not in store
+  // ── Load ride from DB if not in store ───────────────────────────────────
   useEffect(() => {
     if (!rideId) return;
     if (activeRide?.$id === rideId) {
@@ -58,27 +105,40 @@ const ActiveRide: React.FC = () => {
     load();
   }, [rideId, activeRide, setActiveRide]);
 
-  // Sync activeRide from store to local
+  // ── Sync activeRide from store to local ──────────────────────────────────
   useEffect(() => {
     if (activeRide && activeRide.$id === rideId) {
       setLocalRide(activeRide);
     }
   }, [activeRide, rideId]);
 
-  // Realtime subscription for live status updates
+  // ── 60 s "no drivers" warning when still pending ─────────────────────────
+  useEffect(() => {
+    if (localRide?.status === 'pending') {
+      setNoDriversWarning(false);
+      timeoutRef.current = setTimeout(() => setNoDriversWarning(true), DRIVER_TIMEOUT_MS);
+    } else {
+      setNoDriversWarning(false);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    }
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
+  }, [localRide?.status]);
+
+  // ── Realtime subscription ─────────────────────────────────────────────────
   useRealtime<Ride>(
     rideId
       ? `databases.${DATABASE_ID}.collections.${COLLECTIONS.RIDES}.documents.${rideId}`
       : '',
-    (event) => {
+    useCallback((event) => {
       if (event.events.some((e) => e.includes('.update') || e.includes('.create'))) {
         const updated = event.payload;
         setLocalRide(updated);
         setActiveRide(updated);
       }
-    },
+    }, [setActiveRide]),
   );
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleStart = async () => {
     if (!rideId) return;
     const ok = await startRide(rideId);
@@ -91,7 +151,7 @@ const ActiveRide: React.FC = () => {
     if (ok) navigate('/driver');
   };
 
-  const handleCancel = async () => {
+  const handleCancelConfirmed = async () => {
     if (!rideId) return;
     const ok = await cancelRide(rideId, 'User cancelled');
     if (ok) navigate(isDriver ? '/driver' : '/rider');
@@ -106,7 +166,7 @@ const ActiveRide: React.FC = () => {
   }
 
   const canCancel = localRide.status === 'pending' || localRide.status === 'accepted';
-  const showComplete = localRide.status === 'completed';
+  const showCompleteBtn = localRide.status === 'completed';
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -129,6 +189,17 @@ const ActiveRide: React.FC = () => {
           </div>
           <p className="text-sm text-gray-600">{STATUS_MESSAGES[localRide.status]}</p>
         </div>
+
+        {/* No drivers warning (after 60 s) */}
+        {noDriversWarning && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex items-start gap-2">
+            <span className="text-lg leading-none">⏱</span>
+            <div>
+              <p className="font-semibold">No drivers available yet</p>
+              <p className="text-xs mt-0.5">It's taking longer than usual. You can keep waiting or cancel and try again.</p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
@@ -160,7 +231,7 @@ const ActiveRide: React.FC = () => {
           <button
             onClick={handleStart}
             disabled={loading}
-            className="w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-60"
+            className="w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading ? <LoadingSpinner size="sm" /> : '▶ Start Ride'}
           </button>
@@ -170,14 +241,14 @@ const ActiveRide: React.FC = () => {
           <button
             onClick={handleComplete}
             disabled={loading}
-            className="w-full rounded-xl bg-green-500 py-3 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-60"
+            className="w-full rounded-xl bg-green-500 py-3 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading ? <LoadingSpinner size="sm" /> : '✅ End Ride'}
           </button>
         )}
 
-        {/* Completed - prompt rider to rate */}
-        {showComplete && !isDriver && (
+        {/* Completed — prompt rider to rate */}
+        {showCompleteBtn && !isDriver && (
           <button
             onClick={() => navigate(`/rate/${rideId}`)}
             className="w-full rounded-xl bg-yellow-400 py-3 text-sm font-bold text-gray-900 hover:bg-yellow-500"
@@ -196,10 +267,10 @@ const ActiveRide: React.FC = () => {
           </button>
         )}
 
-        {/* Cancel button */}
+        {/* Cancel button → opens dialog */}
         {canCancel && (
           <button
-            onClick={handleCancel}
+            onClick={() => setShowCancelDialog(true)}
             disabled={loading}
             className="w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60"
           >
@@ -207,6 +278,15 @@ const ActiveRide: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* Cancel confirmation dialog */}
+      {showCancelDialog && (
+        <CancelDialog
+          loading={loading}
+          onConfirm={handleCancelConfirmed}
+          onClose={() => setShowCancelDialog(false)}
+        />
+      )}
     </div>
   );
 };
