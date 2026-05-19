@@ -103,6 +103,22 @@ const RiderDashboard: React.FC = () => {
   }, [dropoffAddress]);
 
   const handleRequestRide = async () => {
+    // Geocode pickup if not yet resolved (e.g. geolocation denied)
+    let pLat = pickupLat;
+    let pLng = pickupLng;
+    let pAddr = pickupAddress;
+    if ((!pLat || !pLng) && pickupAddress.trim()) {
+      setGeocoding(true);
+      const result = await geocode(pickupAddress);
+      setGeocoding(false);
+      if (!result) { return; }
+      pLat = parseFloat(result.lat);
+      pLng = parseFloat(result.lon);
+      pAddr = result.display_name;
+      setPickupLat(pLat);
+      setPickupLng(pLng);
+      setPickupAddress(pAddr);
+    }
     // Geocode dropoff if not yet resolved
     let lat = dropoffLat;
     let lng = dropoffLng;
@@ -119,13 +135,13 @@ const RiderDashboard: React.FC = () => {
       setDropLng(lng);
       setDropAddress(addr);
     }
-    if (!pickupLat || !pickupLng || !lat || !lng) return;
-    const distKm = haversineKm(pickupLat, pickupLng, lat, lng);
+    if (!pLat || !pLng || !lat || !lng) return;
+    const distKm = haversineKm(pLat, pLng, lat, lng);
     const fare = calculateFare(distKm);
     const ride = await requestRide({
-      pickupLat,
-      pickupLng,
-      pickupAddress,
+      pickupLat: pLat,
+      pickupLng: pLng,
+      pickupAddress: pAddr,
       dropoffLat: lat,
       dropoffLng: lng,
       dropoffAddress: addr,
