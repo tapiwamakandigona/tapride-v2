@@ -3,7 +3,7 @@
  * message updates for a given rideId.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { ID, Query, AppwriteException } from 'appwrite';
+import { ID, Query, AppwriteException, Permission, Role } from 'appwrite';
 import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuthStore } from '@/store/authStore';
 import type { Message } from '@/types';
@@ -87,7 +87,11 @@ export function useChat(rideId: string) {
         senderName: profile.name,
         content: content.trim(),
         createdAt: new Date().toISOString(),
-      });
+      }, [
+        Permission.read(Role.users()),
+        Permission.update(Role.user(user.$id)),
+        Permission.delete(Role.user(user.$id)),
+      ]);
       return true;
     } catch (e) {
       const msg = e instanceof AppwriteException ? e.message : 'Failed to send message';

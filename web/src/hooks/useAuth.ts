@@ -4,7 +4,7 @@
  * and loads the current session + profile on mount.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { ID, Query, AppwriteException } from 'appwrite';
+import { ID, Query, AppwriteException, Permission, Role } from 'appwrite';
 import { account, databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuthStore } from '@/store/authStore';
 import type { Profile, UserRole } from '@/types';
@@ -91,6 +91,11 @@ export function useAuth() {
           totalRides: 0,
           isOnline: false,
         },
+        [
+          Permission.read(Role.users()),
+          Permission.update(Role.user(newUser.$id)),
+          Permission.delete(Role.user(newUser.$id)),
+        ],
       );
       setProfile(profileDoc as unknown as Profile);
       return true;

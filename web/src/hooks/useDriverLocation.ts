@@ -4,7 +4,7 @@
  * - Queries nearby drivers from Appwrite for the rider's map view.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ID, Query, AppwriteException } from 'appwrite';
+import { ID, Query, AppwriteException, Permission, Role } from 'appwrite';
 import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuthStore } from '@/store/authStore';
 import { useRideStore } from '@/store/rideStore';
@@ -64,6 +64,11 @@ export function useDriverLocation() {
             COLLECTIONS.DRIVER_LOCATIONS,
             ID.unique(),
             payload,
+            [
+              Permission.read(Role.users()),
+              Permission.update(Role.user(user.$id)),
+              Permission.delete(Role.user(user.$id)),
+            ],
           );
           locationDocIdRef.current = doc.$id;
         }

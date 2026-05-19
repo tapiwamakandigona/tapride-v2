@@ -3,7 +3,7 @@
  * cancelling and completing rides via Appwrite Databases.
  */
 import { useState, useCallback } from 'react';
-import { ID, Query, AppwriteException } from 'appwrite';
+import { ID, Query, AppwriteException, Permission, Role } from 'appwrite';
 import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useRideStore } from '@/store/rideStore';
 import { useAuthStore } from '@/store/authStore';
@@ -38,10 +38,13 @@ export function useRide() {
         {
           riderId: user.$id,
           status: 'pending' as RideStatus,
-          
-          
           ...params,
         },
+        [
+          Permission.read(Role.users()),
+          Permission.update(Role.users()),
+          Permission.delete(Role.user(user.$id)),
+        ],
       );
       const ride = doc as unknown as Ride;
       setActiveRide(ride);
