@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TapRide</string>
+
+    <!-- Auth -->
+    <string name="label_email">Email</string>
+    <string name="label_password">Password</string>
+    <string name="label_full_name">Full Name</string>
+    <string name="label_phone">Phone Number</string>
+    <string name="label_role">Role</string>
+    <string name="label_vehicle_type">Vehicle Type</string>
+    <string name="label_license_plate">License Plate</string>
+    <string name="btn_login">Log In</string>
+    <string name="btn_register">Register</string>
+    <string name="btn_logout">Log Out</string>
+    <string name="btn_continue">Continue</string>
+    <string name="link_no_account">Don\'t have an account? Register</string>
+    <string name="link_have_account">Already have an account? Log In</string>
+
+    <!-- Ride -->
+    <string name="label_pickup">Pickup Location</string>
+    <string name="label_destination">Destination</string>
+    <string name="btn_request_ride">Request Ride</string>
+    <string name="btn_cancel_ride">Cancel Ride</string>
+    <string name="btn_accept_ride">Accept Ride</string>
+    <string name="btn_start_ride">Start Ride</string>
+    <string name="btn_complete_ride">Complete Ride</string>
+    <string name="label_fare_estimate">Fare Estimate</string>
+    <string name="label_distance">Distance</string>
+    <string name="label_status">Status</string>
+
+    <!-- Dashboard -->
+    <string name="title_rider_dashboard">Find a Ride</string>
+    <string name="title_driver_dashboard">Driver Dashboard</string>
+    <string name="title_ride_history">Ride History</string>
+    <string name="title_profile">Profile</string>
+    <string name="title_active_ride">Active Ride</string>
+    <string name="title_chat">Chat</string>
+    <string name="title_rate_ride">Rate Your Ride</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_history">History</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Status labels -->
+    <string name="status_requested">Requested</string>
+    <string name="status_accepted">Accepted</string>
+    <string name="status_in_progress">In Progress</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_cancelled">Cancelled</string>
+
+    <!-- Driver toggle -->
+    <string name="btn_go_online">Go Online</string>
+    <string name="btn_go_offline">Go Offline</string>
+    <string name="label_online">Online</string>
+    <string name="label_offline">Offline</string>
+
+    <!-- Chat -->
+    <string name="hint_message">Type a message…</string>
+    <string name="btn_send">Send</string>
+
+    <!-- Rating -->
+    <string name="label_rating">Rating</string>
+    <string name="btn_submit_rating">Submit Rating</string>
+    <string name="hint_review">Leave a comment (optional)</string>
+
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_network">No internet connection.</string>
+    <string name="error_location">Unable to get location. Please enable GPS.</string>
+    <string name="error_fields_required">Please fill in all required fields.</string>
+</resources>
