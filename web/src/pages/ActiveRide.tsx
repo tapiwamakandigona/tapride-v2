@@ -195,7 +195,16 @@ const ActiveRide: React.FC = () => {
         className="h-56 flex-shrink-0"
       />
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-24 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32 space-y-4">
+        {/* Back button for riders */}
+        {!isDriver && (localRide.status === 'completed' || localRide.status === 'cancelled') && (
+          <button
+            onClick={() => navigate('/rider')}
+            className="flex items-center gap-1 text-sm text-brand-600 font-medium hover:underline"
+          >
+            ← Back to Home
+          </button>
+        )}
         {/* Status banner */}
         <div className="rounded-xl bg-white p-4 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-1">

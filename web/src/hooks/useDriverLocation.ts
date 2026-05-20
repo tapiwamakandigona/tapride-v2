@@ -126,16 +126,25 @@ export function useDriverLocation() {
   const fetchNearbyDrivers = useCallback(async (lat: number, lng: number) => {
     try {
       const { minLat, maxLat, minLng, maxLng } = boundingBox(lat, lng);
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.DRIVER_LOCATIONS, [
-        Query.greaterThanEqual('lat', minLat),
-        Query.lessThanEqual('lat', maxLat),
-        Query.greaterThanEqual('lng', minLng),
-        Query.lessThanEqual('lng', maxLng),
-        Query.equal('isAvailable', true),
-        Query.limit(20),
-      ]);
-
-      const drivers = (res.documents as unknown as DriverLocation[]).filter(
+      let docs: DriverLocation[];
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.DRIVER_LOCATIONS, [
+          Query.greaterThanEqual('lat', minLat),
+          Query.lessThanEqual('lat', maxLat),
+          Query.greaterThanEqual('lng', minLng),
+          Query.lessThanEqual('lng', maxLng),
+          Query.equal('isAvailable', true),
+          Query.limit(20),
+        ]);
+        docs = res.documents as unknown as DriverLocation[];
+      } catch {
+        // Index not ready — fall back to listing all and filtering client-side
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.DRIVER_LOCATIONS, [
+          Query.limit(50),
+        ]);
+        docs = (res.documents as unknown as DriverLocation[]).filter(d => d.isAvailable);
+      }
+      const drivers = docs.filter(
         (d) => haversineKm(lat, lng, d.lat, d.lng) <= MAX_DRIVER_DISTANCE_KM,
       );
       setNearbyDrivers(drivers);

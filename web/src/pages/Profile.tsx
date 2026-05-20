@@ -3,6 +3,7 @@
  */
 import React, { useState } from 'react';
 import { AppwriteException } from 'appwrite';
+import { useNavigate } from 'react-router-dom';
 import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +14,12 @@ import { logger } from '@/lib/logger';
 const Profile: React.FC = () => {
   const { user, profile, setProfile } = useAuthStore();
   const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState(profile?.name ?? '');
@@ -182,7 +189,7 @@ const Profile: React.FC = () => {
         )}
 
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors"
         >
           Sign Out

@@ -22,9 +22,10 @@ const Login: React.FC = () => {
     const ok = await login(email, password);
     setSubmitting(false);
     if (ok) {
-      // Navigate based on role — profile is set in useAuth.login
-      // Use the store value after login resolves
-      navigate(profile?.role === 'driver' ? '/driver' : '/rider', { replace: true });
+      // Read fresh profile from store after login resolves (closure value may be stale)
+      const { useAuthStore: _store } = await import('@/store/authStore');
+      const freshProfile = _store.getState().profile;
+      navigate(freshProfile?.role === 'driver' ? '/driver' : '/rider', { replace: true });
     }
   };
 
