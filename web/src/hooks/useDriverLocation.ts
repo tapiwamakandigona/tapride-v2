@@ -92,6 +92,14 @@ export function useDriverLocation() {
         },
         (err) => {
           logger.warn('GPS error', err.message);
+          const msgs: Record<number, string> = {
+            1: 'Location permission denied. Please enable GPS in your browser settings.',
+            2: 'GPS signal unavailable. Please check your device location settings.',
+            3: 'GPS request timed out. Please try again.',
+          };
+          setLocationError(msgs[err.code] ?? `GPS error: ${err.message}`);
+          setPublishing(false);
+          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
         },
         { enableHighAccuracy: true, timeout: 8000 },
       );

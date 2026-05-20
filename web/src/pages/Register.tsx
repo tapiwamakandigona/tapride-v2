@@ -23,7 +23,7 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const ok = await register(email, password, fullName, phone, role);
+    const ok = await register(email, password, fullName, phone, role, vehicleType, licensePlate);
     setSubmitting(false);
     if (ok) {
       navigate(role === 'driver' ? '/driver' : '/rider', { replace: true });

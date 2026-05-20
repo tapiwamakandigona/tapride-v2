@@ -69,6 +69,8 @@ export function useAuth() {
     fullName: string,
     phone: string,
     role: UserRole,
+    vehicleType?: string,
+    licensePlate?: string,
   ) => {
     setError(null);
     try {
@@ -77,20 +79,26 @@ export function useAuth() {
       setUser(await account.get());
 
       // Create profile document
+      const profileData: Record<string, unknown> = {
+        userId: newUser.$id,
+        name: fullName,
+        email,
+        phone,
+        role,
+        rating: 5.0,
+        totalRides: 0,
+        isOnline: false,
+      };
+      if (role === 'driver') {
+        if (vehicleType) profileData.vehicleType = vehicleType;
+        if (licensePlate) profileData.licensePlate = licensePlate;
+      }
+
       const profileDoc = await databases.createDocument(
         DATABASE_ID,
         COLLECTIONS.PROFILES,
         ID.unique(),
-        {
-          userId: newUser.$id,
-          name: fullName,
-          email,
-          phone,
-          role,
-          rating: 5.0,
-          totalRides: 0,
-          isOnline: false,
-        },
+        profileData,
         [
           Permission.read(Role.users()),
           Permission.update(Role.user(newUser.$id)),
