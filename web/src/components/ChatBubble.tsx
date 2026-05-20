@@ -12,10 +12,11 @@ interface Props {
 
 /** Renders a chat bubble with sender name, message content, and timestamp. */
 export const ChatBubble: React.FC<Props> = ({ message, isSelf }) => {
-  const time = new Date(message.$createdAt ?? message.createdAt).toLocaleTimeString([], {
+  const rawTime = message.$createdAt ?? message.createdAt;
+  const time = rawTime ? new Date(rawTime as string).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
-  });
+  }) : '';
 
   return (
     <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} mb-3`}>

@@ -24,7 +24,7 @@ export function useDriverLocation() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /** Publish the driver's current GPS position to Appwrite */
-  const publishLocation = useCallback(async (lat: number, lng: number, heading?: number) => {
+  const publishLocation = useCallback(async (lat: number, lng: number) => {
     if (!user) return;
     try {
       const payload = {
@@ -32,7 +32,6 @@ export function useDriverLocation() {
         lat,
         lng,
         isAvailable: true,
-        heading: heading ?? 0,
         updatedAt: new Date().toISOString(),
       };
 
@@ -89,7 +88,7 @@ export function useDriverLocation() {
     const publish = () => {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          publishLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.heading ?? undefined);
+          publishLocation(pos.coords.latitude, pos.coords.longitude);
         },
         (err) => {
           logger.warn('GPS error', err.message);
