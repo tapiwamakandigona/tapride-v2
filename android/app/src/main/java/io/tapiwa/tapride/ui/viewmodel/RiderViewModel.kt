@@ -69,6 +69,8 @@ class RiderViewModel : ViewModel() {
             authRepo.currentUser().onSuccess { user ->
                 currentUserId = user.id
                 loadActiveRide()
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(error = "Session expired. Please log in again.")
             }
         }
     }
@@ -116,6 +118,16 @@ class RiderViewModel : ViewModel() {
             dropLat = lat, dropLng = lng, dropAddress = address
         )
         recalculateFare()
+    }
+
+    /** Updates only the pickup address text without zeroing coordinates. */
+    fun setPickupAddress(address: String) {
+        _uiState.value = _uiState.value.copy(pickupAddress = address)
+    }
+
+    /** Updates only the drop address text without zeroing coordinates. */
+    fun setDropAddress(address: String) {
+        _uiState.value = _uiState.value.copy(dropAddress = address)
     }
 
     private fun recalculateFare() {

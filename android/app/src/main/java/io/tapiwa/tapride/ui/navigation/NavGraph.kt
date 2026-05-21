@@ -94,8 +94,12 @@ fun TapRideNavGraph(navController: NavHostController) {
             route = Route.ActiveRide.path,
             arguments = listOf(navArgument("rideId") { type = NavType.StringType })
         ) { backStack ->
-            val rideId = backStack.arguments?.getString("rideId") ?: ""
-            ActiveRideScreen(navController = navController, rideId = rideId)
+            val rideId = backStack.arguments?.getString("rideId").orEmpty()
+            if (rideId.isNotEmpty()) {
+                ActiveRideScreen(navController = navController, rideId = rideId)
+            } else {
+                navController.popBackStack()
+            }
         }
 
         composable(
@@ -113,9 +117,13 @@ fun TapRideNavGraph(navController: NavHostController) {
                 navArgument("rateeId") { type = NavType.StringType }
             )
         ) { backStack ->
-            val rideId  = backStack.arguments?.getString("rideId")  ?: ""
-            val rateeId = backStack.arguments?.getString("rateeId") ?: ""
-            RateRideScreen(navController = navController, rideId = rideId, rateeId = rateeId)
+            val rideId  = backStack.arguments?.getString("rideId").orEmpty()
+            val rateeId = backStack.arguments?.getString("rateeId").orEmpty()
+            if (rideId.isNotEmpty()) {
+                RateRideScreen(navController = navController, rideId = rideId, rateeId = rateeId)
+            } else {
+                navController.popBackStack()
+            }
         }
 
         composable(Route.RideHistory.path) {

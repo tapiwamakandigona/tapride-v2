@@ -46,11 +46,17 @@ fun DriverDashboardScreen(
         }
     }
 
-    // Navigate to active ride when driver has accepted one.
+    // Navigate to active ride when driver has accepted one (only once per ride ID).
+    val navigatedRideId = remember { mutableStateOf<String?>(null) }
     LaunchedEffect(uiState.activeRide) {
-        uiState.activeRide?.let { ride ->
-            navController.navigate(Route.ActiveRide.createRoute(ride.id))
+        val ride = uiState.activeRide
+        if (ride != null && navigatedRideId.value != ride.id) {
+            navigatedRideId.value = ride.id
+            navController.navigate(Route.ActiveRide.createRoute(ride.id)) {
+                launchSingleTop = true
+            }
         }
+        if (ride == null) navigatedRideId.value = null
     }
 
     Scaffold(

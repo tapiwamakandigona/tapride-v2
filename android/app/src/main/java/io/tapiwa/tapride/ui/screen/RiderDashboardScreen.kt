@@ -47,12 +47,17 @@ fun RiderDashboardScreen(
         }
     }
 
-    // Navigate to active ride when one is found.
+    // Navigate to active ride when one is found (only once per ride ID).
+    val navigatedRideId = remember { mutableStateOf<String?>(null) }
     LaunchedEffect(uiState.currentRide) {
         val ride = uiState.currentRide
-        if (ride != null && ride.status in listOf("accepted", "in_progress")) {
-            navController.navigate(Route.ActiveRide.createRoute(ride.id))
+        if (ride != null && ride.status in listOf("accepted", "in_progress") && navigatedRideId.value != ride.id) {
+            navigatedRideId.value = ride.id
+            navController.navigate(Route.ActiveRide.createRoute(ride.id)) {
+                launchSingleTop = true
+            }
         }
+        if (ride == null) navigatedRideId.value = null
     }
 
     Scaffold(
@@ -109,7 +114,7 @@ fun RiderDashboardScreen(
             // ── Pickup field ─────────────────────────────────────────────────
             OutlinedTextField(
                 value = uiState.pickupAddress,
-                onValueChange = { viewModel.setPickup(0.0, 0.0, it) },
+                onValueChange = { viewModel.setPickupAddress(it) },
                 label = { Text(stringResource(R.string.label_pickup)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -120,7 +125,7 @@ fun RiderDashboardScreen(
             // ── Destination field ─────────────────────────────────────────────
             OutlinedTextField(
                 value = uiState.dropAddress,
-                onValueChange = { viewModel.setDrop(0.0, 0.0, it) },
+                onValueChange = { viewModel.setDropAddress(it) },
                 label = { Text(stringResource(R.string.label_destination)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -144,17 +149,23 @@ fun RiderDashboardScreen(
                     onClick = { viewModel.requestRide() }
                 )
             } else {
-                // Ride is in "requested" state — show cancel option.
+                val ride = uiState.currentRide
                 Text(
-                    text = "Waiting for a driver…",
+                    text = when (ride?.status) {
+                        "accepted" -> "Driver is on the way…"
+                        "in_progress" -> "Ride in progress"
+                        else -> "Waiting for a driver…"
+                    },
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { viewModel.cancelRide() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.btn_cancel_ride))
+                if (ride?.status in listOf("requested", "pending", null)) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.cancelRide() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.btn_cancel_ride))
+                    }
                 }
             }
         }

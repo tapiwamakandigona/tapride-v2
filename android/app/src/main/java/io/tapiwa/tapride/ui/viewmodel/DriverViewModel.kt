@@ -76,6 +76,8 @@ class DriverViewModel : ViewModel() {
             authRepo.currentUser().onSuccess { user ->
                 currentUserId = user.id
                 loadActiveRide()
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(error = "Session expired. Please log in again.")
             }
         }
     }
@@ -177,6 +179,8 @@ class DriverViewModel : ViewModel() {
             rideRepo.getRidesForDriver(currentUserId).onSuccess { rides ->
                 val active = rides.firstOrNull { it.status in listOf("accepted", "in_progress") }
                 _uiState.value = _uiState.value.copy(activeRide = active)
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(error = e.message)
             }
         }
     }
