@@ -173,7 +173,14 @@ const Profile: React.FC = () => {
         {editing && (
           <div className="flex gap-3">
             <button
-              onClick={() => setEditing(false)}
+              onClick={() => {
+                setEditing(false);
+                setFullName(profile?.name ?? '');
+                setPhone(profile?.phone ?? '');
+                setVehicleType(profile?.vehicleType ?? '');
+                setLicensePlate(profile?.licensePlate ?? '');
+                setError(null);
+              }}
               className="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
             >
               Cancel

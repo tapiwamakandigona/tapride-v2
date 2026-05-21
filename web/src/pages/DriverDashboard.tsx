@@ -31,6 +31,7 @@ const DriverDashboard: React.FC = () => {
   const [userLat, setUserLat] = useState<number | undefined>();
   const [userLng, setUserLng] = useState<number | undefined>();
   const [togglingOnline, setTogglingOnline] = useState(false);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   // On mount: redirect if driver has an active ride (accepted/inprogress)
   useEffect(() => {
@@ -126,8 +127,8 @@ const DriverDashboard: React.FC = () => {
 
   const handleToggleOnline = async () => {
     setTogglingOnline(true);
+    setToggleError(null);
     const newState = !isOnline;
-    setIsOnline(newState);
     if (newState) {
       startPublishing();
     } else {
@@ -135,15 +136,25 @@ const DriverDashboard: React.FC = () => {
       setRequestedRides([]);
     }
 
-    // Update profile in DB
+    // Update profile in DB — only update UI state after success
     if (profile) {
       try {
         await databases.updateDocument(DATABASE_ID, COLLECTIONS.PROFILES, profile.$id, {
           isOnline: newState,
         });
+        setIsOnline(newState);
       } catch (e) {
         logger.error('toggle online', e);
+        // Revert publishing state on failure
+        if (newState) {
+          await stopPublishing();
+        } else {
+          startPublishing();
+        }
+        setToggleError('Failed to update online status. Please try again.');
       }
+    } else {
+      setIsOnline(newState);
     }
     setTogglingOnline(false);
   };
@@ -190,6 +201,12 @@ const DriverDashboard: React.FC = () => {
         {!isOnline && (
           <div className="rounded-xl bg-gray-100 p-4 text-center text-sm text-gray-500">
             Go online to see ride requests
+          </div>
+        )}
+
+        {toggleError && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+            {toggleError}
           </div>
         )}
 

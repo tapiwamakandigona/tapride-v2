@@ -70,9 +70,9 @@ const AppRoutes: React.FC = () => {
         <Route
           path="/ride/:rideId"
           element={
-            <ProtectedLayout>
+            <AuthGuard>
               <ActiveRide />
-            </ProtectedLayout>
+            </AuthGuard>
           }
         />
         <Route

@@ -197,6 +197,7 @@ const RiderDashboard: React.FC = () => {
 
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState('');
+  const [geoError, setGeoError] = useState('');
 
   // Suggestions
   const [pickupSuggestions, setPickupSuggestions] = useState<GeoResult[]>([]);
@@ -237,6 +238,7 @@ const RiderDashboard: React.FC = () => {
       () => {
         logger.warn('Geolocation denied');
         setDetectingLocation(false);
+        setGeoError('Location access denied — please type your pickup address');
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
@@ -283,6 +285,7 @@ const RiderDashboard: React.FC = () => {
 
   // ── Step 1: resolve coords then show confirm sheet ────────────────────────
   const handleRequestRide = useCallback(async () => {
+    setGeoError('');
     let pLat = pickupLat;
     let pLng = pickupLng;
     let pAddr = pickupAddress;
@@ -293,7 +296,10 @@ const RiderDashboard: React.FC = () => {
       const result = await geocode(pickupAddress);
       setGeocoding(false);
       setGeocodeMsg('');
-      if (!result) return;
+      if (!result) {
+        setGeoError('Address not found, try a more specific location');
+        return;
+      }
       pLat = parseFloat(result.lat);
       pLng = parseFloat(result.lon);
       pAddr = result.display_name;
@@ -312,7 +318,10 @@ const RiderDashboard: React.FC = () => {
       const result = await geocode(dropoffAddress);
       setGeocoding(false);
       setGeocodeMsg('');
-      if (!result) return;
+      if (!result) {
+        setGeoError('Address not found, try a more specific location');
+        return;
+      }
       dLat = parseFloat(result.lat);
       dLng = parseFloat(result.lon);
       dAddr = result.display_name;
@@ -321,7 +330,10 @@ const RiderDashboard: React.FC = () => {
       setDropoffAddress(dAddr);
     }
 
-    if (!pLat || !pLng || !dLat || !dLng) return;
+    if (!pLat || !pLng || !dLat || !dLng) {
+      setGeoError('Please enter valid pickup and drop-off addresses');
+      return;
+    }
 
     const distKm = haversineKm(pLat, pLng, dLat, dLng);
     const fare = calculateFare(distKm);
@@ -381,6 +393,13 @@ const RiderDashboard: React.FC = () => {
           <div className="flex items-center gap-2 text-sm text-brand-600">
             <LoadingSpinner size="sm" />
             <span>{geocodeMsg || 'Searching…'}</span>
+          </div>
+        )}
+
+        {/* Geo error */}
+        {geoError && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+            {geoError}
           </div>
         )}
 

@@ -68,6 +68,42 @@ const CancelDialog: React.FC<CancelDialogProps> = ({ loading, onConfirm, onClose
   </div>
 );
 
+// ─── End ride confirmation dialog ─────────────────────────────────────────────
+
+interface EndDialogProps {
+  loading: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+const EndDialog: React.FC<EndDialogProps> = ({ loading, onConfirm, onClose }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
+    <div
+      className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-lg font-bold text-gray-900 text-center">End this ride?</h3>
+      <p className="text-sm text-gray-500 text-center">
+        Confirm that you have completed the trip and dropped off the rider.
+      </p>
+      <button
+        onClick={onConfirm}
+        disabled={loading}
+        className="w-full rounded-xl bg-green-500 py-3 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {loading ? <LoadingSpinner size="sm" /> : 'Confirm End Ride'}
+      </button>
+      <button
+        onClick={onClose}
+        disabled={loading}
+        className="w-full rounded-xl border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+);
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const ActiveRide: React.FC = () => {
@@ -79,6 +115,7 @@ const ActiveRide: React.FC = () => {
   const [localRide, setLocalRide] = useState<Ride | null>(activeRide);
   const [error, setError] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showEndDialog, setShowEndDialog] = useState(false);
   const [noDriversWarning, setNoDriversWarning] = useState(false);
 
   const isDriver = profile?.role === 'driver';
@@ -195,7 +232,7 @@ const ActiveRide: React.FC = () => {
         className="h-56 flex-shrink-0"
       />
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-8 space-y-4">
         {/* Back button for riders */}
         {!isDriver && (localRide.status === 'completed' || localRide.status === 'cancelled') && (
           <button
@@ -203,6 +240,15 @@ const ActiveRide: React.FC = () => {
             className="flex items-center gap-1 text-sm text-brand-600 font-medium hover:underline"
           >
             ← Back to Home
+          </button>
+        )}
+        {/* Back button for drivers */}
+        {isDriver && (localRide.status === 'completed' || localRide.status === 'cancelled') && (
+          <button
+            onClick={() => navigate('/driver')}
+            className="flex items-center gap-1 text-sm text-brand-600 font-medium hover:underline"
+          >
+            ← Back to Dashboard
           </button>
         )}
         {/* Status banner */}
@@ -263,7 +309,7 @@ const ActiveRide: React.FC = () => {
 
         {isDriver && localRide.status === 'inprogress' && (
           <button
-            onClick={handleComplete}
+            onClick={() => setShowEndDialog(true)}
             disabled={loading}
             className="w-full rounded-xl bg-green-500 py-3 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-60 flex items-center justify-center gap-2"
           >
@@ -309,6 +355,15 @@ const ActiveRide: React.FC = () => {
           loading={loading}
           onConfirm={handleCancelConfirmed}
           onClose={() => setShowCancelDialog(false)}
+        />
+      )}
+
+      {/* End ride confirmation dialog */}
+      {showEndDialog && (
+        <EndDialog
+          loading={loading}
+          onConfirm={() => { setShowEndDialog(false); handleComplete(); }}
+          onClose={() => setShowEndDialog(false)}
         />
       )}
     </div>

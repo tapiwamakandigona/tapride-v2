@@ -16,6 +16,7 @@ const ChatPage: React.FC = () => {
   const { messages, loading, error, sendMessage } = useChat(rideId ?? '');
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages
@@ -26,9 +27,14 @@ const ChatPage: React.FC = () => {
   const handleSend = async () => {
     if (!text.trim()) return;
     setSending(true);
-    await sendMessage(text);
+    setSendError(null);
+    const ok = await sendMessage(text);
     setSending(false);
-    setText('');
+    if (ok) {
+      setText('');
+    } else {
+      setSendError('Failed to send message. Please try again.');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -42,7 +48,7 @@ const ChatPage: React.FC = () => {
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-white px-4 py-3 flex items-center gap-3 shadow-sm">
-        <button onClick={() => navigate(-1)} className="text-gray-500 text-xl">
+        <button onClick={() => navigate(`/ride/${rideId}`)} aria-label="Back to ride" className="text-gray-500 text-xl">
           ←
         </button>
         <div>
@@ -62,6 +68,18 @@ const ChatPage: React.FC = () => {
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 mb-3">
             {error}
+          </div>
+        )}
+
+        {!loading && !error && messages.length === 0 && (
+          <div className="flex justify-center py-12 text-sm text-gray-400">
+            No messages yet. Say hello! 👋
+          </div>
+        )}
+
+        {sendError && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 mb-3">
+            {sendError}
           </div>
         )}
 

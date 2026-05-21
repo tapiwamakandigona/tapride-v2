@@ -13,9 +13,17 @@ const RideHistory: React.FC = () => {
   const navigate = useNavigate();
   const { fetchHistory, loading } = useRide();
   const [rides, setRides] = useState<Ride[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchHistory().then(setRides);
+    (async () => {
+      try {
+        const result = await fetchHistory();
+        setRides(result);
+      } catch {
+        setError('Failed to load ride history. Please try again.');
+      }
+    })();
   }, [fetchHistory]);
 
   return (
@@ -28,6 +36,12 @@ const RideHistory: React.FC = () => {
         {loading && (
           <div className="flex justify-center py-10">
             <LoadingSpinner label="Loading…" />
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+            {error}
           </div>
         )}
 

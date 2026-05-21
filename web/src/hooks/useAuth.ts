@@ -137,5 +137,7 @@ export function useAuth() {
     }
   }, []);
 
-  return { user, profile, isLoading, error, login, register, logout, sendPasswordReset };
+  const clearError = () => setError(null);
+
+  return { user, profile, isLoading, error, clearError, login, register, logout, sendPasswordReset };
 }
