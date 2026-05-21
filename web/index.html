@@ -3,22 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // Restore path from GitHub Pages 404 SPA redirect trick
+      // Restore path from GitHub Pages SPA redirect (sessionStorage method)
       (function() {
-        var redirect = sessionStorage.redirect;
-        delete sessionStorage.redirect;
-        if (redirect && redirect !== location.href) {
-          history.replaceState(null, null, redirect);
-        }
-        // Also handle ?p= query param from 404.html
-        var p = window.location.search.match(/[?&]p=([^&]+)/);
-        if (p) {
-          var path = p[1].replace(/~and~/g, '&');
-          var rest = window.location.search.replace(/[?&]p=[^&]+/, '').replace(/^[?&]/, '');
-          history.replaceState(null, null,
-            window.location.pathname.replace(/\/$/, '') + '/' + path +
-            (rest ? '?' + rest : '') + window.location.hash
-          );
+        var redirect = sessionStorage.getItem('spa_redirect');
+        if (redirect) {
+          sessionStorage.removeItem('spa_redirect');
+          // Only redirect if the stored URL is different (and same origin)
+          var stored = new URL(redirect);
+          if (stored.pathname !== location.pathname || stored.search !== location.search) {
+            history.replaceState(null, '', stored.pathname + stored.search + stored.hash);
+          }
         }
       })();
     </script>

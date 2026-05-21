@@ -37,16 +37,18 @@ const DriverDashboard: React.FC = () => {
     if (!user) return;
     (async () => {
       try {
+        // Fetch recent driver rides and filter active ones client-side
+        // (Appwrite doesn't support multiple notEqual on same field)
         const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.RIDES, [
           Query.equal('driverId', user.$id),
-          Query.notEqual('status', 'completed'),
-          Query.notEqual('status', 'cancelled'),
-          Query.notEqual('status', 'pending'),
           Query.orderDesc('$createdAt'),
-          Query.limit(1),
+          Query.limit(20),
         ]);
-        if (res.documents.length > 0) {
-          navigate(`/ride/${res.documents[0].$id}`, { replace: true });
+        const active = res.documents.filter(
+          (d) => d.status === 'accepted' || d.status === 'inprogress',
+        );
+        if (active.length > 0) {
+          navigate(`/ride/${active[0].$id}`, { replace: true });
         }
       } catch {
         // stay on dashboard

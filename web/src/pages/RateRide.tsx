@@ -22,13 +22,15 @@ const RateRide: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [driverId, setDriverId] = useState<string | null>(activeRide?.driverId ?? null);
+  const [loadingRide, setLoadingRide] = useState(!activeRide?.driverId);
 
   // Fetch driverId from Appwrite if not in store
   useEffect(() => {
-    if (driverId || !rideId) return;
+    if (driverId || !rideId) { setLoadingRide(false); return; }
     databases.getDocument(DATABASE_ID, COLLECTIONS.RIDES, rideId)
       .then((doc) => { if (doc.driverId) setDriverId(doc.driverId as string); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingRide(false));
   }, [rideId, driverId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,6 +59,32 @@ const RateRide: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  if (loadingRide) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <LoadingSpinner label="Loading ride…" />
+      </div>
+    );
+  }
+
+  if (!driverId) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-sm space-y-4 bg-white rounded-2xl p-6 shadow-md text-center">
+          <div className="text-4xl mb-2">✅</div>
+          <h1 className="text-xl font-bold text-gray-900">Ride Complete</h1>
+          <p className="text-sm text-gray-500">No driver to rate for this ride.</p>
+          <button
+            onClick={() => navigate('/rider', { replace: true })}
+            className="w-full rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
@@ -115,7 +143,7 @@ const RateRide: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => navigate('/rider')}
+          onClick={() => navigate('/rider', { replace: true })}
           className="w-full text-center text-sm text-gray-400 hover:text-gray-600"
         >
           Skip

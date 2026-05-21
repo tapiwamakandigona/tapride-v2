@@ -156,17 +156,22 @@ const RiderDashboard: React.FC = () => {
     if (location.pathname !== '/rider') return; // only redirect from the dashboard
     (async () => {
       try {
+        // Fetch recent rides and filter active ones client-side
+        // (Appwrite v1 doesn't support multiple notEqual on same field)
         const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.RIDES, [
           Query.equal('riderId', user.$id),
-          Query.notEqual('status', 'completed'),
-          Query.notEqual('status', 'cancelled'),
           Query.orderDesc('$createdAt'),
-          Query.limit(5),
+          Query.limit(20),
         ]);
         if (res.documents.length > 0) {
+          // Filter to only active rides client-side
+          const active = res.documents.filter(
+            (d) => d.status !== 'completed' && d.status !== 'cancelled',
+          );
+          if (active.length === 0) return;
           // prefer inprogress > accepted > pending
           const priority = ['inprogress', 'accepted', 'pending'];
-          const sorted = res.documents.sort((a, b) => {
+          const sorted = active.sort((a, b) => {
             const ai = priority.indexOf(a.status);
             const bi = priority.indexOf(b.status);
             return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
