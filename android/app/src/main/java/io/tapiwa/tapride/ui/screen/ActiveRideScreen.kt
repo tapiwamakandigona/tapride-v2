@@ -58,9 +58,16 @@ fun ActiveRideScreen(
     LaunchedEffect(uiState.ride?.status) {
         val ride = uiState.ride
         if (ride?.status == "completed") {
-            val rateeId = ride.driverId ?: ""
-            navController.navigate(Route.RateRide.createRoute(rideId, rateeId)) {
-                popUpTo(Route.ActiveRide.path) { inclusive = true }
+            val rateeId = ride.driverId.orEmpty()
+            if (rateeId.isNotEmpty()) {
+                navController.navigate(Route.RateRide.createRoute(rideId, rateeId)) {
+                    popUpTo(Route.ActiveRide.path) { inclusive = true }
+                }
+            } else {
+                // No driver assigned — skip rating, go straight to dashboard
+                navController.navigate(Route.RiderDashboard.path) {
+                    popUpTo(0) { inclusive = true }
+                }
             }
         }
     }

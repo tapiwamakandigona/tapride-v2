@@ -110,6 +110,10 @@ fun RateRideScreen(
                 isLoading = isLoading,
                 onClick = {
                     scope.launch {
+                        if (rateeId.isBlank()) {
+                            errorMsg = "No driver to rate."
+                            return@launch
+                        }
                         isLoading = true
                         authRepo.currentUser().onSuccess { user ->
                             ratingRepo.createRating(
